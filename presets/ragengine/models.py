@@ -72,7 +72,6 @@ class QueryRequest(BaseModel):
     @model_validator(mode="after")
     def validate_params(cls, values: "QueryRequest") -> "QueryRequest":
         # Access fields as attributes instead of treating as a dictionary
-        llm_params = values.llm_params  # Validate LLM parameters on vLLM side
         rerank_params = values.rerank_params
         top_k = values.top_k
 
