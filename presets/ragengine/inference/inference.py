@@ -12,28 +12,30 @@
 # limitations under the License.
 
 
-from pydantic import PrivateAttr
-import logging
 import asyncio
-import httpx
-from typing import Any
-from llama_index.core.llms import (
-    CustomLLM,
-    CompletionResponse,
-    LLMMetadata,
-    CompletionResponseGen,
-)
-from llama_index.llms.openai import OpenAI
-from llama_index.core.llms.callbacks import llm_completion_callback
-import requests
-from requests.exceptions import HTTPError
-from urllib.parse import urlparse, urljoin
-from ragengine.config import (
-    LLM_INFERENCE_URL,
-    LLM_ACCESS_SECRET,
-)  # , LLM_RESPONSE_FIELD
-from fastapi import HTTPException
 import concurrent.futures
+import logging
+from typing import Any
+from urllib.parse import urljoin, urlparse
+
+import httpx
+import requests
+from fastapi import HTTPException
+from llama_index.core.llms import (
+    CompletionResponse,
+    CompletionResponseGen,
+    CustomLLM,
+    LLMMetadata,
+)
+from llama_index.core.llms.callbacks import llm_completion_callback
+from llama_index.llms.openai import OpenAI
+from pydantic import PrivateAttr
+from requests.exceptions import HTTPError
+
+from ragengine.config import (
+    LLM_ACCESS_SECRET,
+    LLM_INFERENCE_URL,
+)  # , LLM_RESPONSE_FIELD
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

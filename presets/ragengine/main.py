@@ -12,68 +12,68 @@
 # limitations under the License.
 
 
-from typing import List, Optional
 import json
-from vector_store_manager.manager import VectorStoreManager
+import os
+import time
+from urllib.parse import unquote
+
 from embedding.huggingface_local_embedding import LocalHuggingFaceEmbedding
 from embedding.remote_embedding import RemoteEmbeddingModel
 from fastapi import FastAPI, HTTPException, Query, Request
 from models import (
-    IndexRequest,
-    ListDocumentsResponse,
-    UpdateDocumentRequest,
-    QueryRequest,
-    QueryResponse,
-    Document,
-    HealthStatus,
     DeleteDocumentRequest,
     DeleteDocumentResponse,
+    Document,
+    HealthStatus,
+    IndexRequest,
+    ListDocumentsResponse,
+    QueryRequest,
+    QueryResponse,
+    UpdateDocumentRequest,
     UpdateDocumentResponse,
 )
-from vector_store.faiss_store import FaissVectorStoreHandler
-
-from ragengine.config import (
-    REMOTE_EMBEDDING_URL,
-    REMOTE_EMBEDDING_ACCESS_SECRET,
-    EMBEDDING_SOURCE_TYPE,
-    LOCAL_EMBEDDING_MODEL_ID,
-    DEFAULT_VECTOR_DB_PERSIST_DIR,
-)
-from urllib.parse import unquote
-import os
 
 # Import Prometheus client for metrics collection
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-import time
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import Response
+from vector_store.faiss_store import FaissVectorStoreHandler
+from vector_store_manager.manager import VectorStoreManager
+
+from ragengine.config import (
+    DEFAULT_VECTOR_DB_PERSIST_DIR,
+    EMBEDDING_SOURCE_TYPE,
+    LOCAL_EMBEDDING_MODEL_ID,
+    REMOTE_EMBEDDING_ACCESS_SECRET,
+    REMOTE_EMBEDDING_URL,
+)
 from ragengine.metrics.prometheus_metrics import (
-    rag_query_latency,
-    rag_query_requests_total,
-    rag_index_latency,
-    rag_index_requests_total,
-    rag_indexes_latency,
-    rag_indexes_requests_total,
-    rag_indexes_document_latency,
-    rag_indexes_document_requests_total,
-    rag_indexes_delete_document_latency,
-    rag_indexes_delete_document_requests_total,
-    rag_indexes_update_document_latency,
-    rag_indexes_update_document_requests_total,
-    rag_persist_latency,
-    rag_persist_requests_total,
-    rag_load_latency,
-    rag_load_requests_total,
-    rag_delete_latency,
-    rag_delete_requests_total,
-    e2e_request_total,
-    e2e_request_latency_seconds,
-    num_requests_running,
-    rag_lowest_source_score,
-    rag_avg_source_score,
-    STATUS_SUCCESS,
-    STATUS_FAILURE,
     MODE_LOCAL,
     MODE_REMOTE,
+    STATUS_FAILURE,
+    STATUS_SUCCESS,
+    e2e_request_latency_seconds,
+    e2e_request_total,
+    num_requests_running,
+    rag_avg_source_score,
+    rag_delete_latency,
+    rag_delete_requests_total,
+    rag_index_latency,
+    rag_index_requests_total,
+    rag_indexes_delete_document_latency,
+    rag_indexes_delete_document_requests_total,
+    rag_indexes_document_latency,
+    rag_indexes_document_requests_total,
+    rag_indexes_latency,
+    rag_indexes_requests_total,
+    rag_indexes_update_document_latency,
+    rag_indexes_update_document_requests_total,
+    rag_load_latency,
+    rag_load_requests_total,
+    rag_lowest_source_score,
+    rag_persist_latency,
+    rag_persist_requests_total,
+    rag_query_latency,
+    rag_query_requests_total,
 )
 
 app = FastAPI()
@@ -174,7 +174,7 @@ def health_check():
 
 @app.post(
     "/index",
-    response_model=List[Document],
+    response_model=list[Document],
     summary="Index Documents",
     description="""
     Add documents to an index or create a new index.
@@ -211,7 +211,7 @@ async def index_documents(request: IndexRequest):
         doc_ids = await rag_ops.index(request.index_name, request.documents)
         documents = [
             Document(doc_id=doc_id, text=doc.text, metadata=doc.metadata)
-            for doc_id, doc in zip(doc_ids, request.documents)
+            for doc_id, doc in zip(doc_ids, request.documents, strict=False)
         ]
         status = STATUS_SUCCESS
         return documents
@@ -319,7 +319,7 @@ async def query_index(request: QueryRequest):
 
 @app.get(
     "/indexes",
-    response_model=List[str],
+    response_model=list[str],
     summary="List All Indexes",
     description="""
     Retrieve the names of all available indexes.
@@ -391,12 +391,12 @@ async def list_documents_in_index(
         10, ge=1, le=100, description="Maximum number of documents to return"
     ),
     offset: int = Query(0, ge=0, description="Starting point for the document list"),
-    max_text_length: Optional[int] = Query(
+    max_text_length: int | None = Query(
         1000,
         ge=1,
         description="Maximum text length to return **per document**. This does not impose a limit on the total length of all documents returned.",
     ),
-    metadata_filter: Optional[str | None] = Query(
+    metadata_filter: str | None | None = Query(
         None,
         description="Optional metadata filter to apply when listing documents. This should be a dictionary with key-value pairs to match against document metadata.",
     ),
@@ -621,7 +621,7 @@ async def persist_index(
 )
 async def load_index(
     index_name: str,
-    path: Optional[str] = Query(None, description="Path to load the index from"),
+    path: str | None = Query(None, description="Path to load the index from"),
     overwrite: bool = Query(
         False, description="Overwrite the existing index if it already exists"
     ),
