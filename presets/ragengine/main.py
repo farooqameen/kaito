@@ -13,21 +13,27 @@
 
 
 import json
+import os
 import time
-from vector_store_manager.manager import VectorStoreManager
+from urllib.parse import unquote
+
 from embedding.huggingface_local_embedding import LocalHuggingFaceEmbedding
 from embedding.remote_embedding import RemoteEmbeddingModel
 from fastapi import FastAPI, HTTPException, Query, Request
-from models import (IndexRequest, ListDocumentsResponse, UpdateDocumentRequest,
-                    QueryRequest, QueryResponse, Document, HealthStatus, DeleteDocumentRequest,
-                    DeleteDocumentResponse, UpdateDocumentResponse, ChatCompletionResponse)
+from models import (
+    ChatCompletionResponse,
+    DeleteDocumentRequest,
+    DeleteDocumentResponse,
+    Document,
+    HealthStatus,
+    IndexRequest,
+    ListDocumentsResponse,
+    QueryRequest,
+    QueryResponse,
+    UpdateDocumentRequest,
+    UpdateDocumentResponse,
+)
 
-from vector_store.faiss_store import FaissVectorStoreHandler
-
-from ragengine.config import (REMOTE_EMBEDDING_URL, REMOTE_EMBEDDING_ACCESS_SECRET,
-                              EMBEDDING_SOURCE_TYPE, LOCAL_EMBEDDING_MODEL_ID, DEFAULT_VECTOR_DB_PERSIST_DIR)
-from urllib.parse import unquote
-import os
 # Import Prometheus client for metrics collection
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import Response
@@ -42,8 +48,6 @@ from ragengine.config import (
     REMOTE_EMBEDDING_URL,
 )
 from ragengine.metrics.prometheus_metrics import (
-    rag_query_latency,
-    rag_query_requests_total,
     rag_chat_latency,
     rag_chat_requests_total,
     rag_index_latency,
@@ -70,7 +74,14 @@ app = FastAPI()
 
 @app.middleware("http")
 async def track_requests(request: Request, call_next):
-    tracked_paths = ["/query", "/index", "/indexes", "/persist", "/load", "/v1/chat/completions"]
+    tracked_paths = [
+        "/query",
+        "/index",
+        "/indexes",
+        "/persist",
+        "/load",
+        "/v1/chat/completions",
+    ]
 
     should_track = any(request.url.path.startswith(path) for path in tracked_paths)
 
@@ -301,7 +312,10 @@ async def query_index(request: QueryRequest):
     finally:
         # Record metrics once in finally block
         rag_query_requests_total.labels(status=status).inc()
-        rag_query_latency.labels(status=status).observe(time.perf_counter() - start_time)
+        rag_query_latency.labels(status=status).observe(
+            time.perf_counter() - start_time
+        )
+
 
 @app.post(
     "/v1/chat/completions",
@@ -373,6 +387,7 @@ async def chat_completions(request: dict):
         # Record metrics once in finally block
         rag_chat_requests_total.labels(status=status).inc()
         rag_chat_latency.labels(status=status).observe(time.perf_counter() - start_time)
+
 
 @app.get(
     "/indexes",
