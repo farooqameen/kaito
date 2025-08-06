@@ -161,12 +161,15 @@ class Inference(CustomLLM):
         data = {"prompt": prompt, **kwargs}
         if model_name:
             data["model"] = model_name  # Include the model only if it is not None
-        if model_max_len and data.get("max_tokens"):
-            if data["max_tokens"] > model_max_len:
-                logger.error(
-                    f"Requested max_tokens ({data['max_tokens']}) exceeds model's max length ({model_max_len})."
-                )
-                # vLLM will raise error ({"object":"error","message":"This model's maximum context length is 131072 tokens. However, you requested 500500500500505361 tokens (361 in the messages, 500500500500505000 in the completion). Please reduce the length of the messages or completion.","type":"BadRequestError","param":null,"code":400})
+        if (
+            model_max_len
+            and data.get("max_tokens")
+            and data["max_tokens"] > model_max_len
+        ):
+            logger.error(
+                f"Requested max_tokens ({data['max_tokens']}) exceeds model's max length ({model_max_len})."
+            )
+            # vLLM will raise error ({"object":"error","message":"This model's maximum context length is 131072 tokens. However, you requested 500500500500505361 tokens (361 in the messages, 500500500500505000 in the completion). Please reduce the length of the messages or completion.","type":"BadRequestError","param":null,"code":400})
 
         # DEBUG: Call the debugging function
         # self._debug_curl_command(data)
@@ -240,13 +243,16 @@ class Inference(CustomLLM):
             response = await client.post(LLM_INFERENCE_URL, json=data, headers=headers)
             response.raise_for_status()  # Raise an exception for HTTP errors
             response_data = response.json()
-            # Check if the request was successful
-            if response.status_code == DEFAULT_HTTP_SUCCESS_CODE:
+            if (
+                # Check if the request was successful
+                response.status_code == DEFAULT_HTTP_SUCCESS_CODE
                 # OAI Spec returns array of choices, we choose the first one
-                if "choices" in response_data and response_data["choices"]:
-                    return CompletionResponse(
-                        text=response_data["choices"][0].get("text", "")
-                    )
+                and "choices" in response_data
+                and response_data["choices"]
+            ):
+                return CompletionResponse(
+                    text=response_data["choices"][0].get("text", "")
+                )
             # Return full response as text if no specific parsing is possible
             return CompletionResponse(text=str(response_data))
         except httpx.HTTPStatusError as e:
