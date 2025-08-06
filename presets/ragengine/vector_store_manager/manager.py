@@ -39,6 +39,10 @@ class VectorStoreManager:
             index_name, query, top_k, llm_params, rerank_params
         )
 
+    async def chat_completion(self, request: dict):
+        """Chat completion using the vector store."""
+        return await self.vector_store.chat_completion(request)
+
     def list_indexes(self):
         """List all indexes."""
         return self.vector_store.list_indexes()

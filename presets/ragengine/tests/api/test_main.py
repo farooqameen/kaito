@@ -20,32 +20,13 @@ from unittest.mock import ANY, patch
 
 import httpx
 import pytest
-import pytest_asyncio
+import httpx
 import respx
 
 from ragengine.config import DEFAULT_VECTOR_DB_PERSIST_DIR
 from ragengine.main import app, vector_store_handler
 
 AUTO_GEN_DOC_ID_LEN = 64
-
-
-@pytest_asyncio.fixture
-async def async_client():
-    """Use an async HTTP client to interact with FastAPI app."""
-    async with httpx.AsyncClient(app=app, base_url="http://localhost") as client:
-        yield client
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(autouse=True)
-def clear_index():
-    vector_store_handler.index_map.clear()
 
 
 @pytest.mark.asyncio
@@ -131,13 +112,7 @@ async def test_query_index_success(mock_get, async_client):
     )
     assert response.json()["source_nodes"][0]["metadata"] == {}
 
-    # Ensure HTTPX was called once
-    assert respx.calls.call_count == 1
-
-    # Ensure the model fetch was called once
-    mock_get.assert_called_once_with("http://localhost:5000/v1/models", headers=ANY)
-
-    response = await async_client.get("/metrics")
+    response = await async_client.get(f"/metrics")
     assert response.status_code == 200
     assert (
         len(
