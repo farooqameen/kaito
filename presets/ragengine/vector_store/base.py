@@ -236,7 +236,7 @@ class BaseVectorStore(ABC):
             id_=doc_id,
             text=document.text,
             metadata=document.metadata,
-            excluded_llm_metadata_keys=[key for key in document.metadata.keys()],
+            excluded_llm_metadata_keys=[key for key in document.metadata],
         )
 
         if self.use_rwlock:
@@ -321,9 +321,7 @@ class BaseVectorStore(ABC):
                         id_=document.doc_id,
                         text=document.text,
                         metadata=document.metadata,
-                        excluded_llm_metadata_keys=[
-                            key for key in document.metadata.keys()
-                        ],
+                        excluded_llm_metadata_keys=[key for key in document.metadata],
                     )
                 )
             else:
