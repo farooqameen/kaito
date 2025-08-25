@@ -30,7 +30,7 @@ TEST_SUITE ?= gpuprovisioner
 
 AZURE_SUBSCRIPTION_ID ?= $(AZURE_SUBSCRIPTION_ID)
 AZURE_LOCATION ?= eastus
-AKS_K8S_VERSION ?= 1.30.0
+AKS_K8S_VERSION ?= 1.31.10
 AZURE_CLUSTER_NAME ?= kaito-demo
 AZURE_RESOURCE_GROUP ?= demo
 AZURE_RESOURCE_GROUP_MC=MC_$(AZURE_RESOURCE_GROUP)_$(AZURE_CLUSTER_NAME)_$(AZURE_LOCATION)
@@ -59,6 +59,9 @@ AWS_KARPENTER_VERSION ?=1.0.8
 GO_INSTALL := ./hack/go-install.sh
 
 BUILD_FLAGS ?=
+
+# Extra arguments for commands
+HELM_INSTALL_EXTRA_ARGS ?=
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -206,7 +209,7 @@ create-acr: ## Create Azure container registry and login into it.
 create-aks-cluster: ## Create an AKS cluster with MSI, OIDC, and workload identity enabled.
 	az aks create  --name $(AZURE_CLUSTER_NAME) --resource-group $(AZURE_RESOURCE_GROUP) \
 	--location $(AZURE_LOCATION) --attach-acr $(AZURE_ACR_NAME) \
-	--kubernetes-version $(AKS_K8S_VERSION) --node-count 1 --generate-ssh-keys  \
+	--kubernetes-version $(AKS_K8S_VERSION) --generate-ssh-keys  \
 	--enable-managed-identity --enable-workload-identity --enable-oidc-issuer --node-vm-size Standard_D2d_v4 -o none
 	az aks get-credentials --name $(AZURE_CLUSTER_NAME) --resource-group $(AZURE_RESOURCE_GROUP) --overwrite-existing
 
@@ -214,7 +217,7 @@ create-aks-cluster: ## Create an AKS cluster with MSI, OIDC, and workload identi
 create-aks-cluster-with-kaito: ## Create an AKS cluster with MSI, OIDC, and Kaito enabled.
 	az aks create  --name $(AZURE_CLUSTER_NAME) --resource-group $(AZURE_RESOURCE_GROUP) \
 	--location $(AZURE_LOCATION) --attach-acr $(AZURE_ACR_NAME) \
-	--kubernetes-version $(AKS_K8S_VERSION) --node-count 1 --generate-ssh-keys  \
+	--kubernetes-version $(AKS_K8S_VERSION) --generate-ssh-keys  \
 	--enable-managed-identity --enable-workload-identity --enable-oidc-issuer -o none
 	az aks get-credentials --name $(AZURE_CLUSTER_NAME) --resource-group $(AZURE_RESOURCE_GROUP) --overwrite-existing
 
@@ -222,7 +225,7 @@ create-aks-cluster-with-kaito: ## Create an AKS cluster with MSI, OIDC, and Kait
 create-aks-cluster-for-karpenter: ## Create an AKS cluster with MSI, Cillium, OIDC, and workload identity enabled.
 	az aks create --name $(AZURE_CLUSTER_NAME) --resource-group $(AZURE_RESOURCE_GROUP) \
     --location $(AZURE_LOCATION) --attach-acr $(AZURE_ACR_NAME) --node-vm-size "Standard_D2d_v4" \
-    --kubernetes-version $(AKS_K8S_VERSION) --node-count 3 --generate-ssh-keys \
+    --kubernetes-version $(AKS_K8S_VERSION) --generate-ssh-keys \
     --network-plugin azure --network-plugin-mode overlay --network-dataplane cilium \
     --enable-managed-identity --enable-oidc-issuer --enable-workload-identity -o none
 	az aks get-credentials --name $(AZURE_CLUSTER_NAME) --resource-group $(AZURE_RESOURCE_GROUP) --overwrite-existing
@@ -392,7 +395,7 @@ az-patch-install-helm: ## Install Kaito workspace Helm chart and set Azure clien
 	yq -i '(.image.tag)                                                     = "$(IMG_TAG)"'                               ./charts/kaito/workspace/values.yaml
 	yq -i '(.clusterName)                                                   = "$(AZURE_CLUSTER_NAME)"'                    ./charts/kaito/workspace/values.yaml
 
-	helm install kaito-workspace ./charts/kaito/workspace --namespace $(KAITO_NAMESPACE) --create-namespace
+	helm install kaito-workspace ./charts/kaito/workspace --namespace $(KAITO_NAMESPACE) --create-namespace $(HELM_INSTALL_EXTRA_ARGS)
 
 .PHONY: az-patch-install-ragengine-helm
 az-patch-install-ragengine-helm: ## Install Kaito RAG Engine Helm chart and set Azure client env vars and settings in Helm values.
@@ -402,7 +405,7 @@ az-patch-install-ragengine-helm: ## Install Kaito RAG Engine Helm chart and set 
 	yq -i '(.image.tag)                                                     = "$(IMG_TAG)"'                               ./charts/kaito/ragengine/values.yaml
 	yq -i '(.clusterName)                                                   = "$(AZURE_CLUSTER_NAME)"'                    ./charts/kaito/ragengine/values.yaml
 
-	helm install kaito-ragengine ./charts/kaito/ragengine --namespace $(KAITO_RAGENGINE_NAMESPACE) --create-namespace
+	helm install kaito-ragengine ./charts/kaito/ragengine --namespace $(KAITO_RAGENGINE_NAMESPACE) --create-namespace $(HELM_INSTALL_EXTRA_ARGS)
 
 .PHONY: az-patch-install-ragengine-helm-e2e
 az-patch-install-ragengine-helm-e2e: ## Install Kaito RAG Engine Helm chart for e2e tests and set Azure client env vars and settings in Helm values.
@@ -415,7 +418,7 @@ az-patch-install-ragengine-helm-e2e: ## Install Kaito RAG Engine Helm chart for 
 	yq -i '(.presetRagImageName)                                         	= "$(RAGENGINE_SERVICE_IMG_NAME)"'            ./charts/kaito/ragengine/values.yaml
 	yq -i '(.presetRagImageTag)                                         	= "$(RAGENGINE_SERVICE_IMG_TAG)"'             ./charts/kaito/ragengine/values.yaml
 
-	helm install kaito-ragengine ./charts/kaito/ragengine --namespace $(KAITO_RAGENGINE_NAMESPACE) --create-namespace
+	helm install kaito-ragengine ./charts/kaito/ragengine --namespace $(KAITO_RAGENGINE_NAMESPACE) --create-namespace $(HELM_INSTALL_EXTRA_ARGS)
 
 .PHONY: aws-patch-install-helm
 aws-patch-install-helm: ## Install Kaito workspace Helm chart and set AWS env vars and settings in Helm values.
@@ -424,7 +427,7 @@ aws-patch-install-helm: ## Install Kaito workspace Helm chart and set AWS env va
 	yq -i '(.clusterName)                                                   = "$(AWS_CLUSTER_NAME)"'                    		./charts/kaito/workspace/values.yaml
 	yq -i '(.cloudProviderName)                                             = "aws"'                                        ./charts/kaito/workspace/values.yaml
 
-	helm install kaito-workspace ./charts/kaito/workspace --namespace $(KAITO_NAMESPACE) --create-namespace
+	helm install kaito-workspace ./charts/kaito/workspace --namespace $(KAITO_NAMESPACE) --create-namespace $(HELM_INSTALL_EXTRA_ARGS)
 
 generate-identities: ## Create identities for the provisioner component.
 	./hack/deploy/generate-identities.sh \
@@ -446,7 +449,7 @@ gpu-provisioner-helm: ## Install GPU provisioner Helm chart for Azure cluster an
 	--values gpu-provisioner-values.yaml \
 	--set settings.azure.clusterName=$(AZURE_CLUSTER_NAME) \
 	--namespace $(GPU_PROVISIONER_NAMESPACE) --create-namespace \
-	https://github.com/Azure/gpu-provisioner/raw/gh-pages/charts/gpu-provisioner-$(GPU_PROVISIONER_VERSION).tgz
+	https://github.com/Azure/gpu-provisioner/raw/gh-pages/charts/gpu-provisioner-$(GPU_PROVISIONER_VERSION).tgz $(HELM_INSTALL_EXTRA_ARGS)
 
 	kubectl wait --for=condition=available deploy "gpu-provisioner" -n gpu-provisioner --timeout=300s
 
