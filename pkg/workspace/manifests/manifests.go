@@ -340,8 +340,7 @@ func GenerateDeploymentManifestWithPodTemplate(workspaceObj *kaitov1beta1.Worksp
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			//nolint:staticcheck //SA1019: deprecate Resource.Count field
-			Replicas: lo.ToPtr(int32(*workspaceObj.Resource.Count)),
+			Replicas: lo.ToPtr(workspaceObj.Status.TargetNodeCount),
 			Selector: labelselector,
 			Template: *templateCopy,
 		},
@@ -413,7 +412,7 @@ func GenerateInferencePoolHelmRelease(workspaceObj *kaitov1beta1.Workspace, isSt
 		matchLabels[appsv1.PodIndexLabel] = "0"
 	}
 
-	// Based on https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/v0.5.1/config/charts/inferencepool/values.yaml
+	// Based on https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/v1.0.0/config/charts/inferencepool/values.yaml
 	helmValues := map[string]any{
 		"inferenceExtension": map[string]any{
 			"image": map[string]string{
@@ -421,10 +420,11 @@ func GenerateInferencePoolHelmRelease(workspaceObj *kaitov1beta1.Workspace, isSt
 				"tag":        consts.InferencePoolChartVersion,
 				"pullPolicy": string(corev1.PullIfNotPresent),
 			},
-			"pluginsConfigFile": "plugins-v2.yaml",
 		},
 		"inferencePool": map[string]any{
-			"targetPortNumber": consts.PortInferenceServer,
+			"targetPorts": []map[string]any{{
+				"number": consts.PortInferenceServer,
+			}},
 			"modelServers": map[string]any{
 				"matchLabels": matchLabels,
 			},
